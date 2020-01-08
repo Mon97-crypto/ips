@@ -1,0 +1,151 @@
+#include <SPI.h>
+#include <LoRa.h>
+#include <TinyGPS++.h>
+#include <SoftwareSerial.h>
+
+TinyGPSPlus gps;
+SoftwareSerial mySerial(3, 4);  // RX TX 
+
+int temp=0;
+char c;
+int in = 8;
+int Reset=6;
+int start=7;
+int count=0,i=0,k=0,rate=0;
+
+unsigned long time2,time1;
+unsigned long time;
+void gps_loc();
+void SendLORA();
+byte heart[8] = 
+{
+  0b00000,
+  0b01010,
+  0b11111,
+  0b11111,
+  0b11111,
+  0b01110,
+  0b00100,
+  0b00000
+};
+
+void setup() 
+{
+
+  pinMode(in, INPUT);
+  pinMode(Reset, INPUT);
+  pinMode(start, INPUT);
+  digitalWrite(Reset, HIGH);
+  digitalWrite(start, HIGH);
+  mySerial.begin(9600);
+  Serial.begin(9600);
+  
+  if(!LoRa.begin(433E6))
+  {Serial.println("Starting Lora faild"); while(1);}
+ 
+  
+  delay(1000);
+
+}
+
+void loop()
+{
+
+  gps_loc();
+       Serial.print("google.com/maps/?q="); 
+       Serial.print(gps.location.lat(), 6);      
+       Serial.print(",");
+       Serial.println(gps.location.lng(), 6); 
+         
+           
+            temp=(analogRead(A0));
+            temp=map(temp,0,1023,0,255);
+            temp=temp+12;
+             SendLORA();  
+  if(!(digitalRead(start)))
+  {
+    k=0;
+   
+    while(k<5)
+    {
+     if(digitalRead(in))
+     {
+      if(k==0)
+      time1=millis();
+      k++;
+      while(digitalRead(in));
+     }
+    }
+      time2=millis();
+      rate=time2-time1;
+      rate=rate/5;
+      rate=60000/rate;
+      SendLORA();
+      Serial.println(rate);
+            mySerial.print(temp);
+            mySerial.print(':');
+            mySerial.print(rate);
+            mySerial.print(':');
+            mySerial.print("gps.location.lat(),6");    
+            mySerial.print(':');
+            mySerial.print("gps.location.lat(),6");   
+      k=0;
+      rate=0;
+    }
+   
+         
+       if((digitalRead(start)))
+       {
+            SendLORA();
+            delay(200); 
+            Serial.print(temp);
+            Serial.print(':');
+            Serial.print(rate);
+            Serial.print(':');
+            Serial.print(gps.location.lat(),6);    
+            Serial.print(':');
+            Serial.print(gps.location.lng(),6);   
+
+            mySerial.print(temp);
+            mySerial.print(':');
+            mySerial.print(rate);
+            mySerial.print(':');
+            mySerial.print(gps.location.lat(),6);    
+            mySerial.print(':');
+            mySerial.print(gps.location.lng(),6);   
+           
+       }
+           
+}        
+
+   
+void gps_loc()
+{
+  while (mySerial.available() > 0)
+  {
+    
+    gps.encode(mySerial.read());
+    if (gps.location.isUpdated())
+    {      
+      ;
+    }
+  }
+}
+
+
+  
+void SendLORA()
+{
+ LoRa.beginPacket();
+ LoRa.print("*");
+ LoRa.print(temp);
+ LoRa.print(":");
+ LoRa.print(gps.location.lat(),6);
+ LoRa.print(":");
+ LoRa.print(rate);
+ LoRa.print(":");
+ LoRa.print(gps.location.lng(),6);
+ LoRa.println("#");
+ LoRa.endPacket();
+ delay(500);
+}

@@ -1,0 +1,96 @@
+#include <SPI.h>
+#include <LoRa.h>
+#include <LiquidCrystal.h>
+LiquidCrystal lcd(3,4,5,6,7,8);
+//RESET 9
+//NSS  10
+//MOSI 11
+//MISO 12
+//SCK  13
+//DIO0  2
+const int alrm = 1; 
+
+void Received();
+void Lora_received();
+int Receive=1;
+char data[50];
+int val=0;
+
+void setup() 
+{
+  lcd.begin(16, 2);
+  lcd.setCursor(0,0);
+  lcd.print("  HEALTH CARE   ");
+  lcd.setCursor(0,1);
+  lcd.print("MONITORING SYSTM");
+  
+  Serial.begin(9600);
+  while (!Serial);
+  Serial.println("HEALTH CARE MONITORING SYSTM");
+  
+   // if (!LoRa.begin(915E6))
+ if (!LoRa.begin(433E6))
+  {
+    Serial.println("Starting LoRa failed!");
+    while (1);
+  }
+  
+  pinMode(1, OUTPUT);
+  digitalWrite(1, HIGH);
+}
+
+void loop() 
+{ 
+ // Serial.println("*8F");
+ // LoRa.beginPacket();
+ // LoRa.print("*8F");
+ // LoRa.endPacket();
+ // delay(500);
+  Lora_received();
+  Received();
+}
+/////////////////////////////////////////////////////////////////////////////////////////////////
+void Lora_received()
+{
+  int packetSize = LoRa.parsePacket();
+    if (packetSize) 
+     {
+      //*28:110:11.07811:77.89125.
+        while (LoRa.available()) 
+           {  
+             if(Receive==1)
+                {
+                data[val]=(char)LoRa.read();
+                if(data[0]=='*'){val++;}
+                if(data[0]!='*'){val=0;}
+                if(data[val]=='#'){data[val]='.';Receive=0; Received(); Receive=1;}
+                }
+            }
+              //print RSSI of packet
+    //Serial.print(" with RSSI ");
+    //Serial.println(LoRa.packetRssi());
+  }
+}
+//////////////////////////////////////////////////////////////////////////////////////////
+void Received()
+{
+      Serial.print(data);
+      Serial.println(' ');
+      
+      val=0;
+      lcd.setCursor(0,0); lcd.print("T:");
+      for(val+=1;data[val]!=':';val++){ lcd.print(data[val]); }
+
+      lcd.print(" ");
+      lcd.print("L:");
+      for(val+=1;data[val]!=':';val++){ lcd.print(data[val]); }
+      
+      lcd.setCursor(0,1); lcd.print("H:");
+      for(val+=1;data[val]!=':';val++){ lcd.print(data[val]); }
+
+      lcd.print(" ");
+      lcd.print("N:");
+      for(val+=1;data[val]!=':';val++){if(val<26) {lcd.print(data[val]);}}
+      
+      val=0;delay(500);
+}
